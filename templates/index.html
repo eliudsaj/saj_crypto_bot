@@ -1,0 +1,2329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Nexus Trading Bot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0b0e11',
+                        surface: '#111827',
+                        glow: '#4f46e5',
+                    },
+                    boxShadow: {
+                        neon: '0 0 20px rgba(99,102,241,0.35)',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ app_css_version }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart engine integration: LightweightCharts -->
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <!-- Socket.IO client for real-time push updates -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100 antialiased">
+    <div class="min-h-screen flex bg-slate-950 app-shell">
+        <aside class="bg-slate-900 border-r border-slate-800 platform-sidebar" aria-label="Primary navigation">
+            <div class="sidebar-top">
+                <div class="sidebar-brand">
+                    <span class="brand-mark"><i class="fas fa-chart-line"></i></span>
+                    <div class="brand-copy">
+                        <h1>Nexus</h1>
+                        <span>Trading Bot</span>
+                    </div>
+                    <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-label="Close menu" aria-expanded="true">
+                        <i class="fas fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="sidebar-status-card">
+                    <div class="status-line">
+                        <span class="status-dot" id="sidebarConnectionDot"></span>
+                        <div>
+                            <strong id="sidebarConnectionState">Broker Offline</strong>
+                            <small>Broker connection</small>
+                        </div>
+                    </div>
+                    <span id="sidebarBotState" class="sidebar-status-pill">Bot Offline</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav" aria-label="Nexus workspace">
+                <div class="sidebar-nav-group">
+                    <div class="sidebar-section-label">Overview</div>
+                    <a href="javascript:void(0)" class="nav-link active" data-page="dashboard" data-tooltip="Dashboard" data-label="Dashboard">
+                        <i class="fas fa-table-columns"></i><span class="nav-label">Dashboard</span>
+                    </a>
+                    <a href="javascript:void(0)" class="nav-link" data-page="positions" data-tooltip="Trades" data-label="Trades">
+                        <i class="fas fa-arrow-trend-up"></i><span class="nav-label">Trades</span>
+                    </a>
+                    <a href="javascript:void(0)" class="nav-link" data-page="positions" data-tooltip="Positions" data-label="Positions">
+                        <i class="fas fa-chart-line"></i><span class="nav-label">Positions</span>
+                    </a>
+                    <a href="javascript:void(0)" class="nav-link" data-page="dashboard" data-tooltip="Signals" data-label="Signals">
+                        <i class="fas fa-bolt"></i><span class="nav-label">Signals</span>
+                    </a>
+                    <a href="javascript:void(0)" class="nav-link" data-page="future-trades" data-tooltip="Watchlist" data-label="Watchlist">
+                        <i class="fas fa-radar"></i><span class="nav-label">Watchlist</span>
+                    </a>
+                </div>
+
+                <div class="sidebar-nav-group">
+                    <div class="sidebar-section-label">Analysis</div>
+                    <a href="javascript:void(0)" class="nav-link" data-page="dashboard" data-tooltip="Analytics" data-label="Analytics">
+                        <i class="fas fa-chart-pie"></i><span class="nav-label">Analytics</span>
+                    </a>
+                    <a href="javascript:void(0)" class="nav-link" data-page="journal" data-tooltip="Journal" data-label="Journal">
+                        <i class="fas fa-book-open"></i><span class="nav-label">Journal</span>
+                    </a>
+                    <a href="javascript:void(0)" class="nav-link" data-page="dashboard" data-tooltip="Risk Monitor" data-label="Risk Monitor">
+                        <i class="fas fa-shield-halved"></i><span class="nav-label">Risk Monitor</span>
+                    </a>
+                    <a href="javascript:void(0)" class="nav-link" data-page="logs" data-tooltip="Logs" data-label="Logs">
+                        <i class="fas fa-file-lines"></i><span class="nav-label">Logs</span>
+                    </a>
+                </div>
+
+                <div class="sidebar-nav-group">
+                    <div class="sidebar-section-label">Management</div>
+                    <a href="javascript:void(0)" class="nav-link" data-page="settings" data-tooltip="Configuration" data-label="Configuration" data-permission="settings">
+                        <i class="fas fa-sliders"></i><span class="nav-label">Configuration</span>
+                    </a>
+                    <a href="javascript:void(0)" class="nav-link" data-page="dashboard" data-tooltip="Broker Management" data-label="Broker Management" data-permission="brokers">
+                        <i class="fas fa-building-columns"></i><span class="nav-label">Broker Management</span>
+                    </a>
+                    <a href="javascript:void(0)" class="nav-link" data-page="users" data-tooltip="Users" data-label="Users" data-permission="users">
+                        <i class="fas fa-users-gear"></i><span class="nav-label">Users</span>
+                    </a>
+                    <a href="javascript:void(0)" class="nav-link" data-page="dashboard" data-tooltip="License" data-label="License" data-permission="licenses">
+                        <i class="fas fa-key"></i><span class="nav-label">License</span>
+                    </a>
+                </div>
+
+                <div class="sidebar-nav-group">
+                    <div class="sidebar-section-label">System</div>
+                    <a href="javascript:void(0)" class="nav-link" data-page="settings" data-tooltip="Settings" data-label="Settings" data-permission="settings">
+                        <i class="fas fa-gear"></i><span class="nav-label">Settings</span>
+                    </a>
+                    <a href="javascript:void(0)" class="nav-link" data-page="dashboard" data-tooltip="System Status" data-label="System Status">
+                        <i class="fas fa-server"></i><span class="nav-label">System Status</span>
+                    </a>
+                </div>
+            </nav>
+
+            <div class="sidebar-bottom">
+                <div class="sidebar-risk-card">
+                    <div>
+                        <span>Global Kill</span>
+                        <strong id="sidebarKillState">Ready</strong>
+                    </div>
+                    <div>
+                        <span>Mode</span>
+                        <strong>Guarded</strong>
+                    </div>
+                </div>
+                <a href="javascript:void(0)" class="sidebar-utility" data-page="settings" data-permission="settings">
+                    <i class="fas fa-gear"></i><span>Settings</span>
+                </a>
+                <a href="javascript:void(0)" class="sidebar-utility" data-page="logs">
+                    <i class="fas fa-clipboard-list"></i><span>Logs</span>
+                </a>
+                <div class="sidebar-profile">
+                    <span class="profile-avatar">NT</span>
+                    <div>
+                        <strong>{{ user_context.user.email if user_context.user else "Nexus User" }}</strong>
+                        <small>{{ user_context.role|title }}{% if user_context.saas_mode %} · SaaS mode{% else %} · Single-user mode{% endif %}</small>
+                    </div>
+                </div>
+                <button id="logoutBtn" class="sidebar-logout" type="button">
+                    <i class="fas fa-arrow-right-from-bracket"></i><span>Logout</span>
+                </button>
+                <div class="sidebar-version">Build {{ ui_version }}</div>
+            </div>
+        </aside>
+        <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
+
+        <main class="flex-1 platform-main">
+            <header class="flex items-center justify-between px-6 py-4 bg-slate-900 border-b border-slate-800 rounded-tr-xl rounded-br-xl platform-topbar">
+                <div>
+                    <button id="mobileSidebarToggle" class="mobile-sidebar-toggle" type="button" aria-label="Open menu">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div class="eyebrow">Live Operations</div>
+                    <div class="topbar-title-row">
+                        <h2 class="text-2xl font-bold">Nexus Trading Bot</h2>
+                        <span class="frontend-proof-badge">Updated UI {{ ui_version }}</span>
+                    </div>
+                    <p class="text-slate-400">Intent-based operations | risk aware | real-time market feed</p>
+                </div>
+                <div class="market-toolbar">
+                    <div class="symbol-search">
+                        <i class="fas fa-magnifying-glass"></i>
+                        <input type="text" id="symbolSearch" placeholder="Search symbol">
+                    </div>
+                    <select id="workspacePreset" aria-label="Workspace preset">
+                        <option>War Room</option>
+                        <option>Execution</option>
+                        <option>Risk</option>
+                    </select>
+                </div>
+                <div class="header-actions flex items-center gap-3">
+                    <span id="topConnectionBadge" class="status-badge neutral">Broker Offline</span>
+                    <span id="topBotBadge" class="status-badge neutral">Bot Offline</span>
+                    <span id="topAccountBadge" class="status-badge neutral">{{ user_context.user.email if user_context.user else "Nexus User" }}</span>
+                    <span id="topLicenseBadge" class="status-badge neutral">License --</span>
+                    <button id="startBtn" class="btn btn-success btn-primary-action">
+                        <i class="fas fa-play"></i> Start
+                    </button>
+                    <button id="stopBtn" class="btn btn-secondary btn-stop-action" disabled>
+                        <i class="fas fa-stop"></i> Stop
+                    </button>
+                    <button class="btn btn-danger btn-panic-action" id="panicCloseBtnTop" title="Panic close">
+                        <i class="fas fa-triangle-exclamation"></i> Panic
+                    </button>
+                </div>
+            </header>
+
+            <div id="alertToastStack" class="alert-toast-stack" aria-live="polite"></div>
+
+            <div class="content">
+                <section id="dashboard" class="page active">
+                    <div id="riskWarningBanner" class="risk-warning-banner hidden" role="status">
+                        <i class="fas fa-triangle-exclamation"></i>
+                        <div>
+                            <strong id="riskWarningTitle">Risk attention required</strong>
+                            <span id="riskWarningMessage">Review exposure and connection state before executing.</span>
+                        </div>
+                    </div>
+                    <div class="command-strip">
+                        <div class="market-tape">
+                            <span><strong>EURUSD</strong> <em>Watching</em></span>
+                            <span><strong>GBPUSD</strong> <em>Scanning</em></span>
+                            <span><strong>USDJPY</strong> <em>Neutral</em></span>
+                            <span class="ui-version-badge"><strong>UI</strong> {{ ui_version }}</span>
+                        </div>
+                        <div class="quick-actions">
+                            <button id="pauseBtn" class="icon-action" title="Pause scanning"><i class="fas fa-pause"></i></button>
+                            <button id="openSettingsModal" class="icon-action" title="Open settings"><i class="fas fa-sliders"></i></button>
+                        </div>
+                    </div>
+                    <div class="top-status-grid glass-card">
+                        <div class="status-group account-group">
+                            <span class="status-group-label">Account</span>
+                            <div class="status-pill">Broker <strong id="brokerActiveName">--</strong></div>
+                            <div class="status-pill">Connection <strong id="brokerConnectionStatus">Offline</strong></div>
+                            <div class="status-pill">Equity <strong id="equity">$0</strong></div>
+                            <div class="status-pill">Balance <strong id="brokerBalance">$0</strong></div>
+                            <div class="status-pill">Free Margin <strong id="margin">$0</strong></div>
+                            <div class="status-pill">Margin Level <strong id="brokerMarginLevel">--</strong></div>
+                            <div class="status-pill">Spread <strong id="brokerSpread">--</strong></div>
+                            <div class="status-pill">Open P&L <strong id="floatingProfit">$0</strong></div>
+                            <div class="status-pill">Closed P&L <strong id="realizedProfit">$0</strong></div>
+                            <div class="status-pill">Net P&L <strong id="netProfit">$0</strong></div>
+                            <div class="status-pill">Drawdown <strong id="drawdown">$0</strong></div>
+                            <div class="status-pill">Daily P&L <strong id="dailyProfit">$0</strong></div>
+                        </div>
+                        <div class="status-group risk-group">
+                            <span class="status-group-label">Risk Runway</span>
+                            <div class="risk-runway">
+                                <div>
+                                    <span>Open Risk</span>
+                                    <strong id="openRisk">$0.00</strong>
+                                </div>
+                                <div>
+                                    <span>Max Open Risk</span>
+                                    <strong id="maxOpenRisk">$0.00</strong>
+                                </div>
+                            </div>
+                            <div class="risk-meter" aria-hidden="true">
+                                <span id="openRiskMeter"></span>
+                            </div>
+                            <div class="risk-footnote">
+                                <span id="openRiskPct">0.0%</span>
+                                <span id="openRiskState">No active stop-risk</span>
+                            </div>
+                        </div>
+                        <div class="status-group bot-group">
+                            <span class="status-group-label">Bot</span>
+                            <div class="status-pill">Status <strong id="botStatus">Offline</strong></div>
+                            <div class="status-pill">Bot Score <strong id="botIQ">--</strong></div>
+                            <div class="status-pill">Readiness <strong id="botScoreGrade">--</strong></div>
+                            <div class="status-pill">Broker <strong id="connected">Disconnected</strong></div>
+                            <div class="status-pill">Active Trades <strong id="activeTrades">0</strong></div>
+                            <div class="status-pill">Sizing <strong id="sizingMode">Fixed lots</strong></div>
+                            <div class="status-pill">Scan <strong id="scanMode">M5 candle</strong></div>
+                            <div class="status-pill">Last <strong id="lastScan">--</strong></div>
+                            <div class="status-pill">Next <strong id="nextScan">--</strong></div>
+                            <div class="status-pill">Cooldown <strong id="tradeCooldown">--</strong></div>
+                            <div class="status-pill">SL Protect <strong id="trailingSlState">On</strong></div>
+                            <div class="status-pill">TP Protect <strong id="trailingTpState">On</strong></div>
+                            <div class="status-pill">Event Guard <strong id="eventGuardState">--</strong></div>
+                        </div>
+                        <div class="status-group license-group">
+                            <span class="status-group-label">License</span>
+                            <div class="status-pill">Status <strong id="licenseStatus">Unknown</strong></div>
+                            <div class="status-pill">Expires <strong id="licenseExpiresAt">--</strong></div>
+                            <div class="status-pill">Days Left <strong id="licenseDaysRemaining">--</strong></div>
+                            <a class="status-pill status-link-pill" href="{{ url_for('license_terms') }}">View Terms</a>
+                        </div>
+                    </div>
+
+                    <section id="blockedTradingPanel" class="blocked-trading-panel glass-card hidden" aria-live="polite">
+                        <div class="blocked-panel-head">
+                            <div>
+                                <span class="eyebrow">Safety Gate</span>
+                                <h3><i class="fas fa-ban"></i> Trading Currently Blocked</h3>
+                            </div>
+                            <span id="readinessStateBadge" class="status-badge danger">BLOCKED</span>
+                        </div>
+                        <div class="readiness-meter" aria-hidden="true">
+                            <span id="readinessMeterFill"></span>
+                        </div>
+                        <div class="blocked-panel-grid">
+                            <div>
+                                <h4>Exact Reasons</h4>
+                                <ul id="blockedReasonsList" class="blocked-reasons-list">
+                                    <li>Waiting for bot status...</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h4>What This Means</h4>
+                                <p>The bot is protecting the account by refusing to trade until minimum safety, market, and strategy validation conditions are met.</p>
+                                <h4>How To Unblock Safely</h4>
+                                <ul class="safe-unblock-list">
+                                    <li>Wait for market open.</li>
+                                    <li>Run more backtests.</li>
+                                    <li>Collect at least 30-100 forward-test trades.</li>
+                                    <li>Improve expectancy above zero.</li>
+                                    <li>Keep demo mode until validation improves.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="war-room-grid">
+                        <section class="panel vision-panel glass-card p-6 rounded-2xl">
+                            <div class="panel-header">
+                                <h3><i class="fas fa-route"></i> Trade Decision</h3>
+                                <span class="neon-pill" id="decisionLiveState">Live</span>
+                            </div>
+                            <div id="visionCards" class="trade-decision-panel">
+                                <div class="decision-hero">
+                                    <div>
+                                        <span class="decision-label">Best setup</span>
+                                        <h4 id="decisionSymbol">No setup</h4>
+                                        <p id="decisionArchetype">Waiting for cleaner structure</p>
+                                    </div>
+                                    <span id="decisionBadge" class="decision-badge wait">WAIT</span>
+                                </div>
+
+                                <div class="decision-meta-grid">
+                                    <div><span>Trade Type</span><strong id="decisionTradeType">--</strong></div>
+                                    <div><span>Direction</span><strong id="decisionDirection">--</strong></div>
+                                    <div><span>Grade</span><strong id="decisionGrade">--</strong></div>
+                                    <div><span>Entry</span><strong id="decisionEntry">--</strong></div>
+                                    <div><span>Regime</span><strong id="decisionRegime">--</strong></div>
+                                </div>
+
+                                <div class="decision-stack">
+                                    <div class="decision-score" data-vision-card="setupScore">
+                                        <span>Setup Score</span>
+                                        <div class="conviction-container">
+                                            <div class="conviction-bar" data-value="0.0"></div>
+                                            <strong class="conviction-label" id="setupScoreVal">0.00</strong>
+                                        </div>
+                                    </div>
+                                    <div class="decision-score" data-vision-card="modelScore">
+                                        <span>Conviction</span>
+                                        <div class="conviction-container">
+                                            <div class="conviction-bar" data-value="0.0"></div>
+                                            <strong class="conviction-label" id="bestConviction">0.0%</strong>
+                                        </div>
+                                    </div>
+                                    <div class="decision-score">
+                                        <span>Risk Reward</span>
+                                        <strong id="decisionRr">--</strong>
+                                    </div>
+                                    <div class="decision-score">
+                                        <span>Spread</span>
+                                        <strong id="decisionSpread">--</strong>
+                                    </div>
+                                </div>
+
+                                <div class="decision-levels">
+                                    <div><span>Stop Loss</span><strong id="decisionSl">--</strong></div>
+                                    <div><span>Take Profit</span><strong id="decisionTp">--</strong></div>
+                                    <div><span>Hot Zone</span><strong id="hotZone">None</strong></div>
+                                </div>
+
+                                <div class="decision-reason">
+                                    <span>Decision Reason</span>
+                                    <strong id="decisionReason">Waiting for signal quality.</strong>
+                                </div>
+
+                                <div class="adaptive-score-box">
+                                    <div class="adaptive-score-head">
+                                        <span>Adaptive Weighting</span>
+                                        <strong id="adaptiveScoreLabel">No adjustment</strong>
+                                    </div>
+                                    <div class="adaptive-score-meter" aria-hidden="true">
+                                        <span id="adaptiveScoreFill"></span>
+                                    </div>
+                                    <div id="adaptiveScoreReasons" class="adaptive-score-reasons">
+                                        <span class="setup-chip">Waiting for closed-trade evidence</span>
+                                    </div>
+                                </div>
+
+                                <details class="decision-details">
+                                    <summary>Component checks</summary>
+                                    <div class="decision-blockers">
+                                    <div>
+                                        <h5>Confirmed</h5>
+                                        <div id="decisionPassed" class="decision-chip-list">
+                                            <span class="setup-chip">No confirmations yet</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h5>Missing / Blockers</h5>
+                                        <div id="decisionMissing" class="decision-chip-list">
+                                            <span class="setup-chip fail">Waiting for signal</span>
+                                        </div>
+                                    </div>
+                                    </div>
+                                </details>
+
+                                <div id="setupChecklist" class="setup-checklist decision-checklist compact-hidden">
+                                    <span>No setup components yet</span>
+                                </div>
+
+                                <div class="decision-hidden-metrics" aria-hidden="true">
+                                    <span id="topSymbol">None</span>
+                                    <span id="nextTradeAction">None</span>
+                                    <span id="visionSymbol">--</span>
+                                    <span id="visionType">--</span>
+                                    <span id="visionEntry">--</span>
+                                    <span id="actionStatus">NO SIGNAL</span>
+                                    <span id="trendConfidenceVal">0.00</span>
+                                    <span id="modelScoreVal">0.00</span>
+                                    <span id="emaCheckVal">0.00</span>
+                                    <span id="pressureVal">0.00</span>
+                                    <span id="apiEndpointCount">0 endpoints</span>
+                                </div>
+                            </div>
+                        </section>
+
+                    </div>
+
+                    <div class="strategy-ops-grid">
+                        <section class="panel glass-card p-6 rounded-2xl ops-panel ops-primary">
+                            <div class="panel-header">
+                                <h3><i class="fas fa-layer-group"></i> Strategy Breakdown</h3>
+                                <span class="neon-pill">Composite</span>
+                            </div>
+                            <div id="strategyBreakdownGrid" class="strategy-breakdown-grid">
+                                <div class="empty-state-compact">Waiting for scored setups...</div>
+                            </div>
+                        </section>
+
+                        <section class="panel glass-card p-6 rounded-2xl ops-panel">
+                            <div class="panel-header">
+                                <h3><i class="fas fa-shield-halved"></i> Execution Safety</h3>
+                                <span class="neon-pill">Spread</span>
+                            </div>
+                            <div id="spreadSafetyGrid" class="spread-safety-grid">
+                                <div class="empty-state-compact">No spread data yet</div>
+                            </div>
+                        </section>
+
+                        <section class="panel glass-card p-6 rounded-2xl ops-panel">
+                            <div class="panel-header">
+                                <h3><i class="fas fa-circle-info"></i> Why No Trade?</h3>
+                                <span class="neon-pill">Rejects</span>
+                            </div>
+                            <div id="rejectionSummaryGrid" class="rejection-summary-grid">
+                                <div class="empty-state-compact">No recent rejections</div>
+                            </div>
+                        </section>
+
+                        <section class="panel glass-card p-6 rounded-2xl ops-panel alerts-panel">
+                            <div class="panel-header">
+                                <h3><i class="fas fa-bell"></i> Alerts</h3>
+                                <span id="alertsCountBadge" class="neon-pill">0</span>
+                            </div>
+                            <div id="alertsPanelList" class="alerts-panel-list">
+                                <div class="empty-state-compact">No alerts yet</div>
+                            </div>
+                        </section>
+
+                        <section class="panel glass-card p-6 rounded-2xl ops-panel risk-monitor-panel">
+                            <div class="panel-header">
+                                <h3><i class="fas fa-shield-virus"></i> Risk Monitor</h3>
+                                <span id="riskStatusBadge" class="status-badge success">SAFE</span>
+                            </div>
+                            <div class="risk-monitor-grid">
+                                <div class="risk-monitor-meter">
+                                    <div><span>Regime</span><strong id="riskRegimeLabel">Unknown</strong></div>
+                                    <div class="risk-meter"><span id="riskRegimeFill"></span></div>
+                                </div>
+                                <div class="risk-monitor-meter">
+                                    <div><span>Exposure</span><strong id="riskExposureLabel">$0 / $0</strong></div>
+                                    <div class="risk-meter"><span id="riskExposureFill"></span></div>
+                                </div>
+                                <div class="risk-monitor-meter">
+                                    <div><span>Drawdown</span><strong id="riskDrawdownLabel">$0 / $0</strong></div>
+                                    <div class="risk-meter"><span id="riskDrawdownFill"></span></div>
+                                </div>
+                                <div class="risk-monitor-meter">
+                                    <div><span>Daily Cap</span><strong id="riskDailyCapLabel">$0 / $0</strong></div>
+                                    <div class="risk-meter"><span id="riskDailyCapFill"></span></div>
+                                </div>
+                            </div>
+                            <div class="risk-monitor-lists">
+                                <div>
+                                    <span class="risk-list-label">Symbol Lockouts</span>
+                                    <div id="riskLockoutsList" class="risk-chip-list">
+                                        <span class="setup-chip pass">None</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <span class="risk-list-label">Risk Blockers</span>
+                                    <div id="riskBlockersList" class="risk-blocker-list">
+                                        <div class="empty-state-compact">No active blockers</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    <section class="panel glass-card p-6 rounded-2xl strategy-validation-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-vial-circle-check"></i> Strategy Validation</h3>
+                            <span id="strategyValidationBadge" class="status-badge neutral">Loading</span>
+                        </div>
+                        <div class="validation-context-row" id="strategyValidationContext">
+                            Waiting for forward-test context...
+                        </div>
+                        <div class="validation-summary-grid">
+                            <div class="edge-summary-card">
+                                <span>Forward Sample</span>
+                                <strong id="validationSampleSize">0</strong>
+                            </div>
+                            <div class="edge-summary-card">
+                                <span>Expectancy</span>
+                                <strong id="validationExpectancy">--</strong>
+                            </div>
+                            <div class="edge-summary-card">
+                                <span>Sharpe</span>
+                                <strong id="validationSharpe">--</strong>
+                            </div>
+                            <div class="edge-summary-card">
+                                <span>Max Drawdown</span>
+                                <strong id="validationDrawdown">--</strong>
+                            </div>
+                            <div class="edge-summary-card">
+                                <span>Average R</span>
+                                <strong id="validationAverageR">--</strong>
+                            </div>
+                            <div class="edge-summary-card">
+                                <span>Confidence Interval</span>
+                                <strong id="validationCi">--</strong>
+                            </div>
+                        </div>
+                        <div class="validation-detail-grid">
+                            <div class="validation-column">
+                                <div class="edge-column-heading">
+                                    <strong>Validation Gates</strong>
+                                    <span>Minimum proof before scale-up</span>
+                                </div>
+                                <div id="validationGatesList" class="validation-gate-list">
+                                    <div class="empty-state-compact">Waiting for validation data...</div>
+                                </div>
+                            </div>
+                            <div class="validation-column">
+                                <div class="edge-column-heading">
+                                    <strong>Rolling Health</strong>
+                                    <span>Latest forward-test window</span>
+                                </div>
+                                <div id="validationRollingList" class="validation-gate-list">
+                                    <div class="empty-state-compact">No rolling sample yet</div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="panel glass-card p-6 rounded-2xl ict-blockers-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-filter-circle-xmark"></i> ICT Blockers</h3>
+                            <span id="ictBlockersBadge" class="status-badge neutral">Loading</span>
+                        </div>
+                        <div class="validation-context-row" id="ictBlockersRecommendation">
+                            Waiting for ICT diagnostics...
+                        </div>
+                        <div id="ictGateConfigList" class="ict-gate-config-list">
+                            <div class="empty-state-compact">Loading ICT gate settings...</div>
+                        </div>
+                        <div class="ict-session-clock">
+                            <div class="edge-column-heading">
+                                <strong>Session Clock</strong>
+                                <span>ICT gate timing basis</span>
+                            </div>
+                            <div id="ictSessionClockList" class="ict-session-clock-list">
+                                <div class="empty-state-compact">Loading session clock...</div>
+                            </div>
+                        </div>
+                        <div class="ict-summary-grid">
+                            <div class="edge-summary-card">
+                                <span>Scanned</span>
+                                <strong id="ictScannedSetups">0</strong>
+                            </div>
+                            <div class="edge-summary-card">
+                                <span>Blocked</span>
+                                <strong id="ictBlockedSetups">0</strong>
+                            </div>
+                            <div class="edge-summary-card">
+                                <span>Passed</span>
+                                <strong id="ictPassedSetups">0</strong>
+                            </div>
+                            <div class="edge-summary-card">
+                                <span>Near Misses</span>
+                                <strong id="ictNearMissCount">0</strong>
+                            </div>
+                        </div>
+                        <div class="ict-diagnostics-grid">
+                            <div class="ict-diagnostics-column">
+                                <div class="edge-column-heading">
+                                    <strong>Top Blockers</strong>
+                                    <span>Highest-friction ICT requirements</span>
+                                </div>
+                                <div id="ictTopBlockersList" class="ict-blocker-list">
+                                    <div class="empty-state-compact">No blocker rows yet</div>
+                                </div>
+                            </div>
+                            <div class="ict-diagnostics-column">
+                                <div class="edge-column-heading">
+                                    <strong>Symbol Breakdown</strong>
+                                    <span>Where conditions fail most often</span>
+                                </div>
+                                <div id="ictSymbolBreakdownList" class="ict-blocker-list">
+                                    <div class="empty-state-compact">No symbol diagnostics yet</div>
+                                </div>
+                            </div>
+                            <div class="ict-diagnostics-column">
+                                <div class="edge-column-heading">
+                                    <strong>Session Breakdown</strong>
+                                    <span>London/New York gate visibility</span>
+                                </div>
+                                <div id="ictSessionBreakdownList" class="ict-blocker-list">
+                                    <div class="empty-state-compact">No session diagnostics yet</div>
+                                </div>
+                            </div>
+                            <div class="ict-diagnostics-column">
+                                <div class="edge-column-heading">
+                                    <strong>Near-Miss Setups</strong>
+                                    <span>Failed by one or two conditions</span>
+                                </div>
+                                <div id="ictNearMissList" class="ict-near-miss-list">
+                                    <div class="empty-state-compact">No near misses yet</div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="panel glass-card p-6 rounded-2xl license-management-panel" data-permission="licenses">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-key"></i> License Management</h3>
+                            <span id="licenseManagementBadge" class="status-badge neutral">Loading</span>
+                        </div>
+                        <div class="settings-note danger-note">
+                            Removing branding or modifying license checks may disable live trading and leave the dashboard in read-only mode.
+                        </div>
+                        <div class="license-admin-grid">
+                            <form id="licenseActivateForm" class="license-form">
+                                <div class="edge-column-heading">
+                                    <strong>Activate License</strong>
+                                    <span>Bind this installation to a license key</span>
+                                </div>
+                                <input type="text" id="activateLicenseKey" placeholder="NEXUS-XXXX-XXXX-XXXX-XXXX" autocomplete="off">
+                                <input type="text" id="activateMachineId" placeholder="Machine ID, optional">
+                                <button type="submit" class="btn btn-primary"><i class="fas fa-unlock-keyhole"></i> Activate</button>
+                            </form>
+                            <form id="licenseCreateForm" class="license-form">
+                                <div class="edge-column-heading">
+                                    <strong>Create License</strong>
+                                    <span>Admin license issuance</span>
+                                </div>
+                                <input type="text" id="newLicenseCustomer" placeholder="Customer name">
+                                <input type="email" id="newLicenseEmail" placeholder="customer@example.com">
+                                <input type="number" id="newLicenseMaxAccounts" min="1" step="1" value="1">
+                                <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Create</button>
+                            </form>
+                        </div>
+                        <div class="table-scroll-shell license-table-shell">
+                            <table class="table license-table">
+                                <thead>
+                                    <tr>
+                                        <th>Key</th>
+                                        <th>Customer</th>
+                                        <th>Email</th>
+                                        <th>Status</th>
+                                        <th>Activated</th>
+                                        <th>Expires</th>
+                                        <th>Days</th>
+                                        <th>Machine ID</th>
+                                        <th>Host</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="licensesTableBody">
+                                    <tr><td colspan="10">Loading licenses...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section class="panel glass-card p-6 rounded-2xl broker-management-panel" data-permission="brokers">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-building-columns"></i> Broker Management</h3>
+                            <span id="brokerManagementBadge" class="status-badge neutral">Loading</span>
+                        </div>
+                        <div class="license-admin-grid">
+                            <form id="brokerProfileForm" class="license-form">
+                                <div class="edge-column-heading">
+                                    <strong id="brokerFormTitle">Add Broker Account</strong>
+                                    <span>MT5 now, ready for Binance, Bybit, and cTrader later</span>
+                                </div>
+                                <input type="hidden" id="brokerProfileId">
+                                <input type="text" id="brokerName" placeholder="Broker display name">
+                                <select id="brokerType">
+                                    <option value="mt5">MetaTrader 5</option>
+                                    <option value="binance">Binance (planned)</option>
+                                    <option value="bybit">Bybit (planned)</option>
+                                    <option value="ctrader">cTrader (planned)</option>
+                                </select>
+                                <input type="text" id="brokerAccount" placeholder="Account number">
+                                <input type="text" id="brokerServer" placeholder="Server">
+                                <input type="password" id="brokerPassword" placeholder="Password">
+                                <select id="brokerMarket">
+                                    <option value="spot">Spot</option>
+                                    <option value="usdm">USD-M Futures (planned)</option>
+                                </select>
+                                <label class="inline-check">
+                                    <input type="checkbox" id="brokerTestnet" checked>
+                                    <span>Use testnet</span>
+                                </label>
+                                <label class="inline-check">
+                                    <input type="checkbox" id="brokerPaper" checked>
+                                    <span>Paper/simulate orders</span>
+                                </label>
+                                <label class="inline-check danger-label">
+                                    <input type="checkbox" id="brokerLiveEnabled">
+                                    <span>Enable live Binance orders</span>
+                                </label>
+                                <label class="inline-check">
+                                    <input type="checkbox" id="brokerSetActive" checked>
+                                    <span>Set as active broker</span>
+                                </label>
+                                <button type="submit" class="btn btn-primary" id="brokerSubmitBtn"><i class="fas fa-plus"></i> Save Broker</button>
+                                <button type="button" class="btn btn-secondary" id="brokerCancelEditBtn"><i class="fas fa-xmark"></i> Cancel Edit</button>
+                            </form>
+                            <div class="edge-column-heading broker-note">
+                                <strong>Active Broker Runtime</strong>
+                                <span>Strategy execution reads the active profile through BrokerAdapter. Switch profiles, then restart the bot to reload the execution adapter.</span>
+                            </div>
+                        </div>
+                        <div class="table-scroll-shell license-table-shell">
+                            <table class="table license-table broker-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Type</th>
+                                        <th>Account</th>
+                                        <th>Server</th>
+                                        <th>Status</th>
+                                        <th>Active</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="brokersTableBody">
+                                    <tr><td colspan="7">Loading brokers...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section class="panel glass-card p-6 rounded-2xl edge-diagnostics-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-microscope"></i> Edge Diagnostics</h3>
+                            <span id="edgeDiagnosticsBadge" class="status-badge neutral">Loading</span>
+                        </div>
+                        <div class="edge-summary-grid">
+                            <div class="edge-summary-card">
+                                <span>Closed Trades</span>
+                                <strong id="edgeClosedTrades">0</strong>
+                            </div>
+                            <div class="edge-summary-card">
+                                <span>Matched Journal</span>
+                                <strong id="edgeMatchedTrades">0</strong>
+                            </div>
+                            <div class="edge-summary-card">
+                                <span>Expectancy</span>
+                                <strong id="edgeExpectancy">--</strong>
+                            </div>
+                            <div class="edge-summary-card">
+                                <span>Profit Factor</span>
+                                <strong id="edgeProfitFactor">--</strong>
+                            </div>
+                        </div>
+                        <div class="edge-diagnostics-grid">
+                            <div class="edge-diagnostics-column">
+                                <div class="edge-column-heading">
+                                    <strong>Strongest Components</strong>
+                                    <span>Positive contributors</span>
+                                </div>
+                                <div id="edgeStrongestList" class="edge-component-list">
+                                    <div class="empty-state-compact">Waiting for diagnostics...</div>
+                                </div>
+                            </div>
+                            <div class="edge-diagnostics-column">
+                                <div class="edge-column-heading">
+                                    <strong>Weakest Components</strong>
+                                    <span>Edge destroyers</span>
+                                </div>
+                                <div id="edgeWeakestList" class="edge-component-list">
+                                    <div class="empty-state-compact">Waiting for diagnostics...</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="edge-combo-grid">
+                            <div>
+                                <div class="edge-column-heading">
+                                    <strong>Toxic Combinations</strong>
+                                    <span>Avoid or tighten</span>
+                                </div>
+                                <div id="edgeToxicCombos" class="edge-combo-list">
+                                    <div class="empty-state-compact">No combinations yet</div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="edge-column-heading">
+                                    <strong>Profitable Combinations</strong>
+                                    <span>Promote with caution</span>
+                                </div>
+                                <div id="edgeProfitableCombos" class="edge-combo-list">
+                                    <div class="empty-state-compact">No combinations yet</div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div id="deepDiveModal" class="modal central-modal" aria-hidden="true">
+                        <div class="modal-content rounded-2xl glass-card p-6">
+                            <button class="modal-close" aria-label="Close">&times;</button>
+                            <h2 id="deepDiveTitle">Deep Dive</h2>
+                            <p class="subtext" id="deepDiveSubtext">Latest validation logs for selected metric</p>
+                            <ul id="validationLogsList" class="validation-logs-list"></ul>
+                            <div id="apiEndpointsList" class="validation-logs-list" style="display:none; max-height: 420px; overflow-y:auto;"></div>
+                            <div class="modal-actions">
+                                <button id="closeDeepDiveBtn" class="btn btn-secondary">Close</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal: Top Signals -->
+                    <div id="topSignalsModal" class="modal">
+                        <div class="modal-content modal-right">
+                            <span class="close">&times;</span>
+                            <h2>Favorable Signals</h2>
+                            <div id="signalsTable" class="signals-table"></div>
+                        </div>
+                    </div>
+
+                    <!-- Card Details Modal (shared) -->
+                    <div id="cardDetailsModal" class="modal">
+                        <div class="modal-content modal-right animate-fade-down">
+                            <span class="close">&times;</span>
+                            <h2 id="cardDetailsTitle">Card Details</h2>
+                            <div id="cardDetailsBody" class="card-details-body"></div>
+                            <div class="modal-actions">
+                                <button id="approveCardBtn" class="btn btn-success">Approve</button>
+                                <button id="rejectCardBtn" class="btn btn-danger">Reject</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Settings Modal -->
+                    <div id="settingsModal" class="modal">
+                        <div class="modal-content modal-right">
+                            <span class="close">&times;</span>
+                            <h2>Settings</h2>
+                            <div id="settingsModalNotification" class="settings-notification" style="display:none; margin-bottom: 16px;"></div>
+                            <form id="settingsModalForm" class="space-y-4">
+                                <div class="settings-tabs">
+                                    <button type="button" class="tab-btn active" data-tab="connectivity">Connectivity</button>
+                                <button type="button" class="tab-btn" data-tab="risk">Risk</button>
+                                <button type="button" class="tab-btn" data-tab="strategy">Strategy</button>
+                            </div>
+                            <div class="tab-panel active" id="tab-connectivity">
+                                <!-- Connectivity fields (same as existing form) -->
+                                <div class="form-group">
+                                    <label for="mt5Account">MT5 Account</label>
+                                    <input type="text" id="mt5Account" placeholder="1105231">
+                                </div>
+                                <div class="form-group">
+                                    <label for="mt5Server">MT5 Server</label>
+                                    <input type="text" id="mt5Server" placeholder="EGMecurities-Demo">
+                                </div>
+                            </div>
+                            <div class="tab-panel" id="tab-risk">
+                                <div class="form-group">
+                                    <label for="riskPct">Risk per Trade (%)</label>
+                                    <input type="number" id="riskPct" min="0.1" step="0.1" placeholder="1.0">
+                                </div>
+                                <div class="form-group">
+                                    <label for="maxExposurePct">Max Open Risk (%)</label>
+                                    <input type="number" id="maxExposurePct" min="1" step="1" placeholder="5">
+                                </div>
+                                <div class="form-group">
+                                    <label for="dailyProfitCap">Daily Profit Cap (%)</label>
+                                    <input type="number" id="dailyProfitCap" min="0.5" step="0.5" placeholder="2.0">
+                                </div>
+                                <div class="form-group">
+                                    <label for="minProfitPips">Min Profit Target (Pips)</label>
+                                    <input type="number" id="minProfitPips" min="1" step="1" placeholder="10">
+                                </div>
+                                <div class="form-group">
+                                    <label for="minExpectedR">Minimum R:R</label>
+                                    <input type="number" id="minExpectedR" min="0.5" step="0.1" placeholder="1.2">
+                                </div>
+                            </div>
+                            <div class="tab-panel" id="tab-strategy">
+                                <div class="form-group">
+                                    <label for="trailingStopTriggerPct">Trailing SL Trigger (%)</label>
+                                    <input type="number" id="trailingStopTriggerPct" min="1" max="100" step="1" placeholder="25">
+                                </div>
+                                <div class="form-group">
+                                    <label for="trailingStopLockPips">Trailing SL Profit Lock (Pips)</label>
+                                    <input type="number" id="trailingStopLockPips" min="0" max="50" step="0.1" placeholder="1">
+                                </div>
+                                <div class="form-group">
+                                    <label for="trailingStopStepPct">Trailing SL Gap (% of TP)</label>
+                                    <input type="number" id="trailingStopStepPct" min="5" max="100" step="1" placeholder="20">
+                                </div>
+                                <div class="form-group">
+                                    <label for="trailingStopMinStepPips">Trailing SL Min Step (Pips)</label>
+                                    <input type="number" id="trailingStopMinStepPips" min="0.1" max="20" step="0.1" placeholder="0.5">
+                                </div>
+                                <div class="form-group">
+                                    <label for="trailingTpEnabled">Enable Trailing TP</label>
+                                    <input type="checkbox" id="trailingTpEnabled">
+                                </div>
+                                <div class="form-group">
+                                    <label for="trailingTpTriggerPct">Trailing TP Trigger (%)</label>
+                                    <input type="number" id="trailingTpTriggerPct" min="1" max="100" step="1" placeholder="80">
+                                </div>
+                                <div class="form-group">
+                                    <label for="trailingTpExtensionPct">Trailing TP Extension (%)</label>
+                                    <input type="number" id="trailingTpExtensionPct" min="1" max="200" step="1" placeholder="50">
+                                </div>
+                                <div class="form-group">
+                                    <label for="trailingTpCooldownSeconds">Trailing TP Cooldown (Seconds)</label>
+                                    <input type="number" id="trailingTpCooldownSeconds" min="0" max="3600" step="30" placeholder="300">
+                                </div>
+                                <div class="form-group">
+                                    <label for="signalLockoutEnabled">Enable Signal Lockout</label>
+                                    <input type="checkbox" id="signalLockoutEnabled">
+                                </div>
+                                <div class="form-group">
+                                    <label for="maxTradesPerSymbol">Max Trades per Symbol</label>
+                                    <input type="number" id="maxTradesPerSymbol" min="1" max="5" step="1" placeholder="1">
+                                </div>
+                                <div class="form-group">
+                                    <label for="tradeCooldownMinutes">Trade Cooldown (min)</label>
+                                    <input type="number" id="tradeCooldownMinutes" min="0" max="120" step="5" placeholder="3" value="3">
+                                </div>
+                            </div>
+                            <div class="settings-actions">
+                                <button type="submit" id="saveSettingsBtn" class="btn btn-primary">Save</button>
+                                <button type="button" id="cancelSettingsBtn" class="btn btn-secondary">Cancel</button>
+                            </div>
+                        </form>
+                        </div>
+                    </div>
+
+                    <!-- Existing grid hidden for clean layout maintenance -->
+                    <div class="bento-grid legacy-hidden" style="display:none;">
+                        <div class="bento-card" data-popup="drawdown-popup">
+                            <div class="card-header">
+                                <i class="fas fa-chart-area"></i>
+                                <h3>Active Drawdown</h3>
+                            </div>
+                            <div class="card-content">
+                                <div class="drawdown-gauge">
+                                    <div class="gauge-fill" id="drawdownGauge"></div>
+                                </div>
+                                <div class="metric-medium" id="drawdownValue">$0.00</div>
+                            </div>
+                        </div>
+
+                        <!-- Bot Status Card -->
+                        <div class="bento-card" data-popup="status-popup">
+                            <div class="card-header">
+                                <i class="fas fa-robot"></i>
+                                <h3>Bot Status</h3>
+                            </div>
+                            <div class="card-content">
+                                <div class="status-indicator" id="botStatusIndicator">Offline</div>
+                                <div class="metric-small" id="connectionLatency">-- ms</div>
+                            </div>
+                        </div>
+
+                        <!-- Win Rate / Factor Card -->
+                        <div class="bento-card" data-popup="performance-popup">
+                            <div class="card-header">
+                                <i class="fas fa-trophy"></i>
+                                <h3>Win Rate / Factor</h3>
+                            </div>
+                            <div class="card-content">
+                                <div class="win-rate-chart">
+                                    <svg viewBox="0 0 100 100" class="win-rate-circle">
+                                        <circle cx="50" cy="50" r="40" class="win-rate-bg" />
+                                        <circle cx="50" cy="50" r="40" class="win-rate-fill" id="winRateFill" />
+                                    </svg>
+                                    <div class="win-rate-text" id="winRateText">0%</div>
+                                </div>
+                                <div class="metric-small" id="profitFactor">PF: 0.00</div>
+                            </div>
+                        </div>
+
+                        <!-- Top Performing Pair Card -->
+                        <div class="bento-card" data-popup="top-pair-popup">
+                            <div class="card-header">
+                                <i class="fas fa-fire"></i>
+                                <h3>Top Performing Pair</h3>
+                            </div>
+                            <div class="card-content">
+                                <div class="metric-large" id="topPairSymbol">--</div>
+                                <div class="metric-medium" id="topPairChange">+0.00%</div>
+                            </div>
+                        </div>
+
+                        <!-- Market Session Card -->
+                        <div class="bento-card" data-popup="session-popup">
+                            <div class="card-header">
+                                <i class="fas fa-globe"></i>
+                                <h3>Market Session</h3>
+                            </div>
+                            <div class="card-content">
+                                <div class="session-timeline">
+                                    <div class="session-item" data-session="tokyo">
+                                        <span class="session-name">Tokyo</span>
+                                        <span class="session-status" id="tokyoStatus">Closed</span>
+                                    </div>
+                                    <div class="session-item" data-session="london">
+                                        <span class="session-name">London</span>
+                                        <span class="session-status" id="londonStatus">Closed</span>
+                                    </div>
+                                    <div class="session-item" data-session="ny">
+                                        <span class="session-name">NY</span>
+                                        <span class="session-status" id="nyStatus">Closed</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Risk Exposure Card -->
+                        <div class="bento-card" data-popup="risk-popup">
+                            <div class="card-header">
+                                <i class="fas fa-shield-alt"></i>
+                                <h3>Risk Exposure</h3>
+                            </div>
+                            <div class="card-content">
+                                <div class="risk-bars">
+                                    <div class="risk-bar">
+                                        <span class="risk-label">Used</span>
+                                        <div class="risk-fill used" id="marginUsedBar"></div>
+                                        <span class="risk-value" id="marginUsed">$0</span>
+                                    </div>
+                                    <div class="risk-bar">
+                                        <span class="risk-label">Free</span>
+                                        <div class="risk-fill free" id="marginFreeBar"></div>
+                                        <span class="risk-value" id="marginFree">$0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- News Alert Card -->
+                        <div class="bento-card" data-popup="news-popup">
+                            <div class="card-header">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <h3>News Alert</h3>
+                            </div>
+                            <div class="card-content">
+                                <div class="news-count" id="newsCount">0</div>
+                                <div class="news-label">High Impact Events</div>
+                                <div class="news-next" id="nextNews">Next: --:-- UTC</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Signal Details Modal -->
+                    <div id="signalModal" class="modal">
+                        <div class="modal-content">
+                            <span class="close">&times;</span>
+                            <h2>Signal Details</h2>
+                            <div id="signalDetails"></div>
+                        </div>
+                    </div>
+
+                    <!-- Log Details Modal -->
+                    <div id="logModal" class="modal">
+                        <div class="modal-content large-modal">
+                            <span class="close">&times;</span>
+                            <h2>Log Details</h2>
+                            <div id="logDetails"></div>
+                        </div>
+                    </div>
+
+                    <!-- Equity Popup Modal -->
+                    <div id="equity-popup" class="modal">
+                        <div class="modal-content large-modal">
+                            <span class="close">&times;</span>
+                            <h2><i class="fas fa-dollar-sign"></i> Account Equity Details</h2>
+                            <div class="popup-content">
+                                <div class="equity-breakdown">
+                                    <div class="equity-item">
+                                        <span class="label">Balance</span>
+                                        <span class="value" id="popupBalance">$0.00</span>
+                                    </div>
+                                    <div class="equity-item">
+                                        <span class="label">Floating P&L</span>
+                                        <span class="value" id="popupFloating">$0.00</span>
+                                    </div>
+                                    <div class="equity-item">
+                                        <span class="label">Equity</span>
+                                        <span class="value" id="popupEquity">$0.00</span>
+                                    </div>
+                                    <div class="equity-item">
+                                        <span class="label">Daily Change</span>
+                                        <span class="value" id="popupDailyChange">+0.00%</span>
+                                    </div>
+                                </div>
+                                <div class="equity-chart-placeholder">
+                                    <i class="fas fa-chart-line"></i>
+                                    <p>Equity curve chart would go here</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Drawdown Popup Modal -->
+                    <div id="drawdown-popup" class="modal">
+                        <div class="modal-content large-modal">
+                            <span class="close">&times;</span>
+                            <h2><i class="fas fa-chart-area"></i> Active Drawdown Analysis</h2>
+                            <div class="popup-content">
+                                <div class="drawdown-trades" id="drawdownTrades">
+                                    <!-- Individual trade P&L will be populated here -->
+                                </div>
+                                <div class="drawdown-actions">
+                                    <button class="btn btn-danger" id="panicCloseBtn">
+                                        <i class="fas fa-exclamation-triangle"></i> Panic Close All
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="panicConfirmModal" class="modal central-modal" aria-hidden="true">
+                        <div class="modal-content panic-confirm-card">
+                            <button class="modal-close" id="panicCancelX" aria-label="Close">&times;</button>
+                            <div class="panic-confirm-icon"><i class="fas fa-triangle-exclamation"></i></div>
+                            <h2>Confirm Panic Close</h2>
+                            <p>This will ask the bot to close all open positions and enable the global kill switch.</p>
+                            <div class="panic-confirm-warning">
+                                Use this only when execution risk, drawdown, or account protection requires immediate intervention.
+                            </div>
+                            <div class="modal-actions">
+                                <button id="panicCancelBtn" class="btn btn-secondary" type="button">Cancel</button>
+                                <button id="panicConfirmBtn" class="btn btn-danger btn-panic-action" type="button">
+                                    <i class="fas fa-triangle-exclamation"></i> Confirm Panic Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status Popup Modal -->
+                    <div id="status-popup" class="modal">
+                        <div class="modal-content">
+                            <span class="close">&times;</span>
+                            <h2><i class="fas fa-robot"></i> Bot Status Details</h2>
+                            <div class="popup-content">
+                                <div class="status-details">
+                                    <div class="status-item">
+                                        <span class="label">MT5 Connection</span>
+                                        <span class="value" id="mt5Connection">Disconnected</span>
+                                    </div>
+                                    <div class="status-item">
+                                        <span class="label">API Heartbeat</span>
+                                        <span class="value" id="apiHeartbeat">-- ms</span>
+                                    </div>
+                                    <div class="status-item">
+                                        <span class="label">Version</span>
+                                        <span class="value" id="botVersion">1.0.0</span>
+                                    </div>
+                                    <div class="status-item">
+                                        <span class="label">Uptime</span>
+                                        <span class="value" id="uptime">00:00:00</span>
+                                    </div>
+                                </div>
+                                <div class="status-logs" id="statusLogs">
+                                    <!-- Connection logs will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Performance Popup Modal -->
+                    <div id="performance-popup" class="modal">
+                        <div class="modal-content">
+                            <span class="close">&times;</span>
+                            <h2><i class="fas fa-trophy"></i> Performance Metrics</h2>
+                            <div class="popup-content">
+                                <div class="performance-grid">
+                                    <div class="perf-item">
+                                        <span class="label">Win Rate</span>
+                                        <span class="value" id="popupWinRate">0%</span>
+                                    </div>
+                                    <div class="perf-item">
+                                        <span class="label">Profit Factor</span>
+                                        <span class="value" id="popupProfitFactor">0.00</span>
+                                    </div>
+                                    <div class="perf-item">
+                                        <span class="label">Avg Win</span>
+                                        <span class="value" id="popupAvgWin">$0.00</span>
+                                    </div>
+                                    <div class="perf-item">
+                                        <span class="label">Avg Loss</span>
+                                        <span class="value" id="popupAvgLoss">$0.00</span>
+                                    </div>
+                                    <div class="perf-item">
+                                        <span class="label">Total Trades</span>
+                                        <span class="value" id="popupTotalTrades">0</span>
+                                    </div>
+                                    <div class="perf-item">
+                                        <span class="label">Expectancy</span>
+                                        <span class="value" id="popupExpectancy">$0.00</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top Pair Popup Modal -->
+                    <div id="top-pair-popup" class="modal">
+                        <div class="modal-content">
+                            <span class="close">&times;</span>
+                            <h2><i class="fas fa-fire"></i> Top Performing Pair</h2>
+                            <div class="popup-content">
+                                <div class="top-pair-details">
+                                    <div class="pair-symbol" id="popupTopSymbol">--</div>
+                                    <div class="pair-change" id="popupTopChange">+0.00%</div>
+                                    <div class="pair-stats">
+                                        <div class="stat">
+                                            <span class="label">Trades</span>
+                                            <span class="value" id="topPairTrades">0</span>
+                                        </div>
+                                        <div class="stat">
+                                            <span class="label">Win Rate</span>
+                                            <span class="value" id="topPairWinRate">0%</span>
+                                        </div>
+                                        <div class="stat">
+                                            <span class="label">P&L</span>
+                                            <span class="value" id="topPairPnL">$0.00</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Session Popup Modal -->
+                    <div id="session-popup" class="modal">
+                        <div class="modal-content">
+                            <span class="close">&times;</span>
+                            <h2><i class="fas fa-globe"></i> Market Sessions</h2>
+                            <div class="popup-content">
+                                <div class="session-details">
+                                    <div class="session-detail" data-session="tokyo">
+                                        <h3>Tokyo Session</h3>
+                                        <p>00:00 - 08:00 UTC</p>
+                                        <div class="session-volatility" id="tokyoVolatility">Low</div>
+                                    </div>
+                                    <div class="session-detail" data-session="london">
+                                        <h3>London Session</h3>
+                                        <p>08:00 - 16:00 UTC</p>
+                                        <div class="session-volatility" id="londonVolatility">High</div>
+                                    </div>
+                                    <div class="session-detail" data-session="ny">
+                                        <h3>New York Session</h3>
+                                        <p>13:30 - 21:00 UTC</p>
+                                        <div class="session-volatility" id="nyVolatility">High</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Risk Popup Modal -->
+                    <div id="risk-popup" class="modal">
+                        <div class="modal-content">
+                            <span class="close">&times;</span>
+                            <h2><i class="fas fa-shield-alt"></i> Risk Exposure</h2>
+                            <div class="popup-content">
+                                <div class="risk-details">
+                                    <div class="risk-metrics">
+                                        <div class="metric">
+                                            <span class="label">Margin Used</span>
+                                            <span class="value" id="popupMarginUsed">$0.00</span>
+                                        </div>
+                                        <div class="metric">
+                                            <span class="label">Margin Free</span>
+                                            <span class="value" id="popupMarginFree">$0.00</span>
+                                        </div>
+                                        <div class="metric">
+                                            <span class="label">Margin Level</span>
+                                            <span class="value" id="popupMarginLevel">0%</span>
+                                        </div>
+                                        <div class="metric">
+                                            <span class="label">Max Open Risk</span>
+                                            <span class="value" id="popupMaxExposure">5%</span>
+                                        </div>
+                                    </div>
+                                    <div class="risk-chart-placeholder">
+                                        <i class="fas fa-chart-pie"></i>
+                                        <p>Risk allocation chart would go here</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- News Popup Modal -->
+                    <div id="news-popup" class="modal">
+                        <div class="modal-content large-modal">
+                            <span class="close">&times;</span>
+                            <h2><i class="fas fa-exclamation-triangle"></i> News Alerts</h2>
+                            <div class="popup-content">
+                                <div class="news-events" id="newsEvents">
+                                    <!-- News events will be populated here -->
+                                </div>
+                                <div class="news-settings">
+                                    <label class="switch">
+                                        <input type="checkbox" id="newsAlertsEnabled" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                    <span class="switch-label">Enable News Alerts</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="positions" class="page">
+                    <div class="card">
+                        <h3>Open Positions (NOW)</h3>
+                        <div class="status-badge badge-active">
+                            <i class="fas fa-circle-notch fa-spin"></i> Active Trades
+                        </div>
+                        <div class="table-scroll-shell" role="region" aria-label="Open positions table" tabindex="0">
+                            <table id="positionsTable" class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Symbol</th>
+                                        <th>Type</th>
+                                        <th>Volume</th>
+                                        <th>Entry</th>
+                                        <th>Current</th>
+                                        <th>SL</th>
+                                        <th>TP</th>
+                                        <th>R</th>
+                                        <th>P&L</th>
+                                        <th>Management</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="10">No positions</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="table-pagination" aria-label="Open positions pagination">
+                            <span id="positionsPageInfo">0 positions</span>
+                            <div class="pagination-actions">
+                                <select id="positionsPageSize" class="page-size-select" aria-label="Positions per page">
+                                    <option value="10">10 / page</option>
+                                    <option value="20" selected>20 / page</option>
+                                    <option value="50">50 / page</option>
+                                </select>
+                                <button id="positionsPrevBtn" class="btn btn-secondary btn-sm" type="button">Prev</button>
+                                <button id="positionsNextBtn" class="btn btn-secondary btn-sm" type="button">Next</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="future-trades" class="page">
+                    <div class="card">
+                        <h3>Global Radar - Live Watchlist Command Center</h3>
+                        <div class="radar-command-bar">
+                            <div id="radarSummary" class="radar-summary">
+                                <span>Signals: <strong>0</strong></span>
+                                <span>Regime: <strong id="radarRegimeLabel">Unknown</strong></span>
+                                <span>A/B setups: <strong>0</strong></span>
+                                <span>Spread safe: <strong>0</strong></span>
+                                <span>Traps: <strong>0</strong></span>
+                                <span>News watch: <strong>0</strong></span>
+                            </div>
+                            <div class="radar-filters" id="radarFilters">
+                                <button class="radar-filter active" data-filter="ALL">All</button>
+                                <button class="radar-filter" data-filter="SCALP">Scalp</button>
+                                <button class="radar-filter" data-filter="INTRADAY">Intraday</button>
+                                <button class="radar-filter" data-filter="SWING">Swing</button>
+                            </div>
+                            <div class="radar-legend">
+                                <span><i class="legend-dot grade-a"></i> Grade A</span>
+                                <span><i class="legend-dot grade-b"></i> Grade B</span>
+                                <span><i class="legend-dot grade-c"></i> Watch</span>
+                            </div>
+                        </div>
+                        <div id="globalRadarGrid" class="watchlist-card-grid">
+                            <!-- Cards will be populated by JavaScript -->
+                        </div>
+                        <div class="radar-pagination">
+                            <select id="radarPageSize" class="page-size-select" aria-label="Watchlist setups per page">
+                                <option value="6">6 / page</option>
+                                <option value="9" selected>9 / page</option>
+                                <option value="18">18 / page</option>
+                            </select>
+                            <button id="radarPrevBtn" class="btn btn-secondary" type="button">Prev</button>
+                            <span id="radarPageInfo">Page 1 / 1</span>
+                            <button id="radarNextBtn" class="btn btn-secondary" type="button">Next</button>
+                        </div>
+                        <div id="globalRadarEmpty" class="empty-state">
+                            <i class="fas fa-radar"></i>
+                            <p>Scanning markets for institutional setups...</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="logs" class="page">
+                    <div class="card">
+                        <h3>Trade Logs</h3>
+                        <div id="logsContainer" class="logs"></div>
+                    </div>
+                </section>
+
+                <section id="journal" class="page">
+                    <div class="card journal-card">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-book-open"></i> Strategy Journal</h3>
+                            <span class="neon-pill">Analytics Only</span>
+                        </div>
+                        <div class="journal-filters">
+                            <input type="text" id="journalSymbolFilter" placeholder="Symbol">
+                            <select id="journalDecisionFilter">
+                                <option value="">All Decisions</option>
+                                <option value="READY">Ready</option>
+                                <option value="WATCH">Watch</option>
+                                <option value="WAIT">Wait</option>
+                                <option value="REJECTED">Rejected</option>
+                            </select>
+                            <select id="journalGradeFilter">
+                                <option value="">All Grades</option>
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                                <option value="C">C</option>
+                                <option value="D">D</option>
+                            </select>
+                            <select id="journalTypeFilter">
+                                <option value="">All Types</option>
+                                <option value="scalp">Scalp</option>
+                                <option value="intraday">Intraday</option>
+                                <option value="swing">Swing</option>
+                            </select>
+                            <input type="date" id="journalDateFilter">
+                            <button id="journalRefreshBtn" class="btn btn-secondary" type="button">Refresh</button>
+                        </div>
+                        <div class="journal-table-wrap">
+                            <table class="journal-table">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Symbol</th>
+                                        <th>Direction</th>
+                                        <th>Type</th>
+                                        <th>Grade</th>
+                                        <th>Score</th>
+                                        <th>Conviction</th>
+                                        <th>Decision</th>
+                                        <th>Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="journalTableBody">
+                                    <tr><td colspan="9">No journal entries yet</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="table-pagination" aria-label="Journal pagination">
+                            <span id="journalPageInfo">0 entries</span>
+                            <div class="pagination-actions">
+                                <select id="journalPageSize" class="page-size-select" aria-label="Journal entries per page">
+                                    <option value="25" selected>25 / page</option>
+                                    <option value="50">50 / page</option>
+                                    <option value="100">100 / page</option>
+                                </select>
+                                <button id="journalPrevBtn" class="btn btn-secondary btn-sm" type="button">Prev</button>
+                                <button id="journalNextBtn" class="btn btn-secondary btn-sm" type="button">Next</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="settings" class="page">
+                    <div class="settings-container">
+                        <div class="settings-header">
+                            <h2><i class="fas fa-cogs"></i> Trading Configuration</h2>
+                            <p class="settings-subtitle">Fine-tune your Nexus Trading Bot parameters</p>
+                        </div>
+                        <div id="settingsNotification" class="settings-notification" style="display:none;"></div>
+
+                        <form id="settingsForm" class="settings-form">
+                            <div class="settings-tabbar" role="tablist" aria-label="Settings sections">
+                                <button class="settings-tab active" type="button" data-settings-tab="basic">MT5 / Symbols</button>
+                                <button class="settings-tab" type="button" data-settings-tab="timing">Scan Timing</button>
+                                <button class="settings-tab" type="button" data-settings-tab="risk">Risk / Sizing</button>
+                                <button class="settings-tab" type="button" data-settings-tab="warroom">War Room</button>
+                                <button class="settings-tab" type="button" data-settings-tab="execution">Execution</button>
+                                <button class="settings-tab" type="button" data-settings-tab="management">Trade Management</button>
+                                <button class="settings-tab" type="button" data-settings-tab="news">News Mode</button>
+                                <button class="settings-tab" type="button" data-settings-tab="alerts">Alerts</button>
+                                <button class="settings-tab" type="button" data-settings-tab="advanced">Advanced</button>
+                            </div>
+
+                            <!-- Symbols Section -->
+                            <div class="settings-section settings-panel active" data-settings-panel="basic">
+                                <div class="section-header">
+                                    <i class="fas fa-chart-line"></i>
+                                    <h3>Symbols</h3>
+                                </div>
+                                <div class="section-content">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="symbols">
+                                                <i class="fas fa-coins"></i>
+                                                Trading Symbols
+                                            </label>
+                                            <input type="text" id="symbols" placeholder="EURUSD,GBPUSD,USDJPY" value="EURUSD,GBPUSD,USDJPY">
+                                            <small>Comma-separated list of currency pairs</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="volume">
+                                                <i class="fas fa-weight"></i>
+                                                Fixed Lot Size
+                                            </label>
+                                            <input type="number" id="volume" min="0.01" step="0.01" placeholder="0.10" value="0.10">
+                                            <small>Order volume used when fixed sizing is enabled</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="positionSizingMode">
+                                                <i class="fas fa-sliders"></i>
+                                                Position Sizing
+                                            </label>
+                                            <select id="positionSizingMode">
+                                                <option value="fixed" selected>Fixed lots</option>
+                                                <option value="risk_percent">Risk percent</option>
+                                            </select>
+                                            <small>Fixed lots prevents SL distance from increasing volume</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Scan Timing Section -->
+                            <div class="settings-section settings-panel" data-settings-panel="timing">
+                                <div class="section-header">
+                                    <i class="fas fa-clock"></i>
+                                    <h3>Scan Timing</h3>
+                                </div>
+                                <div class="section-content">
+                                    <div class="settings-note">
+                                        Faster scans increase terminal/API load. New-candle mode is steadier for production execution.
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="timeframe"><i class="fas fa-chart-candlestick"></i> Strategy Timeframe</label>
+                                            <select id="timeframe">
+                                                <option value="M1">M1</option>
+                                                <option value="M5" selected>M5</option>
+                                                <option value="M15">M15</option>
+                                                <option value="M30">M30</option>
+                                                <option value="H1">H1</option>
+                                            </select>
+                                            <small>Candle timeframe requested from MT5 for scanner logic.</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="scanIntervalSeconds"><i class="fas fa-rotate"></i> Scan Interval (seconds)</label>
+                                            <input type="number" id="scanIntervalSeconds" min="1" max="3600" step="1" value="3" required data-numeric-label="Scan Interval">
+                                            <small>Minimum time between scanner passes when new-candle mode is off.</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="engineLoopSleepSeconds"><i class="fas fa-hourglass-half"></i> Engine Loop Sleep (seconds)</label>
+                                            <input type="number" id="engineLoopSleepSeconds" min="0.1" max="60" step="0.1" value="3" required data-numeric-label="Engine Loop Sleep">
+                                            <small>Small pause between engine loop iterations.</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="scanOnNewCandle"><i class="fas fa-toggle-on"></i> Scan Only New Candles</label>
+                                            <div class="toggle-container">
+                                                <input type="checkbox" id="scanOnNewCandle">
+                                                <label for="scanOnNewCandle" class="toggle-switch"></label>
+                                            </div>
+                                            <small>Wait for a fresh candle window before scanning again.</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="scanTimeframeMinutes"><i class="fas fa-stopwatch"></i> Candle Window (minutes)</label>
+                                            <input type="number" id="scanTimeframeMinutes" min="1" max="240" step="1" value="5" required data-numeric-label="Candle Window">
+                                            <small>Used to calculate the next new-candle scan window.</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="duplicateSignalCooldownSeconds"><i class="fas fa-copy"></i> Duplicate Signal Cooldown (seconds)</label>
+                                            <input type="number" id="duplicateSignalCooldownSeconds" min="0" max="86400" step="30" value="300" required data-numeric-label="Duplicate Signal Cooldown">
+                                            <small>Suppress repeated logs for the same setup.</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Risk Management Section -->
+                            <div class="settings-section settings-panel" data-settings-panel="risk">
+                                <div class="section-header">
+                                    <i class="fas fa-shield-alt"></i>
+                                    <h3>Risk Limits</h3>
+                                </div>
+                                <div class="section-content">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="riskPct">
+                                                <i class="fas fa-percentage"></i>
+                                                Risk per Trade (%) <span class="danger-label">risky</span>
+                                            </label>
+                                            <input type="number" id="riskPct" min="0.1" max="5" step="0.1" placeholder="1.0" value="1.0">
+                                            <small>Used only when Position Sizing is Risk percent</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="maxExposurePct">
+                                                <i class="fas fa-chart-pie"></i>
+                                                Max Open Risk (%) <span class="danger-label">danger</span>
+                                            </label>
+                                            <input type="number" id="maxExposurePct" min="1" max="20" step="1" placeholder="5" value="5">
+                                            <small>Total open stop-loss risk allowed as % of equity. Example: 1 = 1%, stored as 0.01.</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="maxDrawdownPct">
+                                                <i class="fas fa-arrow-trend-down"></i>
+                                                Max Drawdown (%) <span class="danger-label">danger</span>
+                                            </label>
+                                            <input type="number" id="maxDrawdownPct" min="0.1" max="100" step="0.1" placeholder="5" value="5" required data-numeric-label="Max Drawdown">
+                                            <small>Session drawdown kill threshold. Example: 5 = 5%, stored as 0.05.</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="minProfitPips">
+                                                <i class="fas fa-target"></i>
+                                                Min Profit Target (Pips)
+                                            </label>
+                                            <input type="number" id="minProfitPips" min="5" max="200" step="5" placeholder="50" value="50">
+                                            <small>Minimum profit target for signal validation</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="dailyProfitCap">
+                                                <i class="fas fa-trophy"></i>
+                                                Daily Profit Cap (%)
+                                            </label>
+                                            <input type="number" id="dailyProfitCap" min="0.5" max="10" step="0.5" placeholder="2.0" value="2.0">
+                                            <small>Stop trading after reaching this profit target</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="minExpectedR">
+                                                <i class="fas fa-scale-balanced"></i>
+                                                Minimum R:R
+                                            </label>
+                                            <input type="number" id="minExpectedR" min="0.5" max="5" step="0.1" placeholder="1.2" value="1.2">
+                                            <small>Reject trades whose reward is too small compared with risk</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="takeProfitR">
+                                                <i class="fas fa-bullseye"></i>
+                                                TP Target (R)
+                                            </label>
+                                            <input type="number" id="takeProfitR" min="0.5" max="10" step="0.1" placeholder="2.0" value="2.0">
+                                            <small>Bot calculates normal TP as this multiple of SL risk</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="takeProfitRScalp">
+                                                <i class="fas fa-bolt"></i>
+                                                Scalp TP Target (R)
+                                            </label>
+                                            <input type="number" id="takeProfitRScalp" min="0.5" max="10" step="0.1" placeholder="1.5" value="1.5">
+                                            <small>Bot calculates scalp TP as this multiple of SL risk</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Trailing Protection Section -->
+                            <div class="settings-section settings-panel" data-settings-panel="management">
+                                <div class="section-header">
+                                    <i class="fas fa-route"></i>
+                                    <h3>Trailing SL / TP</h3>
+                                </div>
+                                <div class="section-content">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="trailingStopTriggerPct">
+                                                <i class="fas fa-flag-checkered"></i>
+                                                Trailing SL Trigger (%)
+                                            </label>
+                                            <input type="number" id="trailingStopTriggerPct" min="1" max="100" step="1" placeholder="25" value="25">
+                                            <small>When this much of the TP distance is reached, protect the trade</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="trailingStopLockPips">
+                                                <i class="fas fa-lock"></i>
+                                                Profit Lock (Pips)
+                                            </label>
+                                            <input type="number" id="trailingStopLockPips" min="0" max="50" step="0.1" placeholder="1" value="1">
+                                            <small>Minimum profit protected after the SL trigger fires</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="trailingStopStepPct">
+                                                <i class="fas fa-shoe-prints"></i>
+                                                SL Trail Gap (% of TP)
+                                            </label>
+                                            <input type="number" id="trailingStopStepPct" min="5" max="100" step="1" placeholder="20" value="20">
+                                            <small>How far behind price the stop trails after profit is locked</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="trailingStopMinStepPips">
+                                                <i class="fas fa-arrows-left-right"></i>
+                                                SL Min Step (Pips)
+                                            </label>
+                                            <input type="number" id="trailingStopMinStepPips" min="0.1" max="20" step="0.1" placeholder="0.5" value="0.5">
+                                            <small>Avoids tiny repeated SL modifications</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="trailingTpEnabled">
+                                                <i class="fas fa-toggle-on"></i>
+                                                Enable Trailing TP
+                                            </label>
+                                            <div class="toggle-container">
+                                                <input type="checkbox" id="trailingTpEnabled" checked>
+                                                <label for="trailingTpEnabled" class="toggle-switch"></label>
+                                            </div>
+                                            <small>Extend TP only when price proves strong continuation</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="trailingTpCooldownSeconds">
+                                                <i class="fas fa-hourglass-half"></i>
+                                                TP Cooldown (Seconds)
+                                            </label>
+                                            <input type="number" id="trailingTpCooldownSeconds" min="0" max="3600" step="30" placeholder="300" value="300">
+                                            <small>Minimum time between TP extensions</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="trailingTpTriggerPct">
+                                                <i class="fas fa-bullseye"></i>
+                                                TP Extension Trigger (%)
+                                            </label>
+                                            <input type="number" id="trailingTpTriggerPct" min="1" max="100" step="1" placeholder="80" value="80">
+                                            <small>How close to TP price must get before extension</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="trailingTpExtensionPct">
+                                                <i class="fas fa-up-right-and-down-left-from-center"></i>
+                                                TP Extension (%)
+                                            </label>
+                                            <input type="number" id="trailingTpExtensionPct" min="1" max="200" step="1" placeholder="50" value="50">
+                                            <small>How much of the current TP distance to add</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="partialTpEnabled">
+                                                <i class="fas fa-scissors"></i>
+                                                Enable Partial TP
+                                            </label>
+                                            <div class="toggle-container">
+                                                <input type="checkbox" id="partialTpEnabled" checked>
+                                                <label for="partialTpEnabled" class="toggle-switch"></label>
+                                            </div>
+                                            <small>Bank part of a trade once it reaches the configured R</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="partialTpTriggerR">
+                                                <i class="fas fa-chart-line"></i>
+                                                Partial TP Trigger (R)
+                                            </label>
+                                            <input type="number" id="partialTpTriggerR" min="0.1" max="5" step="0.05" placeholder="0.35" value="0.35">
+                                            <small>Take partial profit after this R multiple is reached</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="partialTpClosePct">
+                                                <i class="fas fa-percent"></i>
+                                                Partial Close (%)
+                                            </label>
+                                            <input type="number" id="partialTpClosePct" min="5" max="100" step="5" placeholder="50" value="50">
+                                            <small>How much volume to close on partial profit</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="reverseProfitExitEnabled">
+                                                <i class="fas fa-turn-down"></i>
+                                                Reverse Profit Exit
+                                            </label>
+                                            <div class="toggle-container">
+                                                <input type="checkbox" id="reverseProfitExitEnabled" checked>
+                                                <label for="reverseProfitExitEnabled" class="toggle-switch"></label>
+                                            </div>
+                                            <small>Close profitable trades if price gives back too much</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="reverseProfitMinR">
+                                                <i class="fas fa-arrow-trend-up"></i>
+                                                Reverse Min Profit (R)
+                                            </label>
+                                            <input type="number" id="reverseProfitMinR" min="0.1" max="5" step="0.05" placeholder="0.20" value="0.20">
+                                            <small>Minimum best profit before reversal protection can fire</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="reverseProfitGivebackPct">
+                                                <i class="fas fa-arrow-rotate-left"></i>
+                                                Giveback (%)
+                                            </label>
+                                            <input type="number" id="reverseProfitGivebackPct" min="5" max="95" step="5" placeholder="30" value="30">
+                                            <small>Close when this much of max open profit is given back</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Signal Lockout System -->
+                            <div class="settings-section settings-panel" data-settings-panel="execution">
+                                <div class="section-header">
+                                    <i class="fas fa-lock"></i>
+                                    <h3>Signal Lockout System</h3>
+                                </div>
+                                <div class="section-content">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="signalLockoutEnabled">
+                                                <i class="fas fa-toggle-on"></i>
+                                                Enable Signal Lockout
+                                            </label>
+                                            <div class="toggle-container">
+                                                <input type="checkbox" id="signalLockoutEnabled" checked>
+                                                <label for="signalLockoutEnabled" class="toggle-switch"></label>
+                                            </div>
+                                            <small>Prevent duplicate trades on same signals</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="maxTradesPerSymbol">
+                                                <i class="fas fa-list-ol"></i>
+                                                Max Trades per Symbol
+                                            </label>
+                                            <input type="number" id="maxTradesPerSymbol" min="1" max="5" step="1" placeholder="1" value="1">
+                                            <small>Maximum concurrent trades per currency pair</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="tradeCooldownMinutes">
+                                                <i class="fas fa-clock"></i>
+                                                Trade Cooldown (Minutes)
+                                            </label>
+                                            <input type="number" id="tradeCooldownMinutes" min="0" max="120" step="5" placeholder="3" value="3">
+                                            <small>Wait time between trades on same symbol</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="noRevengeCooldown">
+                                                <i class="fas fa-ban"></i>
+                                                Revenge Cooldown (Hours)
+                                            </label>
+                                            <input type="number" id="noRevengeCooldown" min="1" max="72" step="1" placeholder="24" value="24">
+                                            <small>Cooldown after losing trade</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-section settings-panel" data-settings-panel="execution">
+                                <div class="section-header">
+                                    <i class="fas fa-filter-circle-dollar"></i>
+                                    <h3>Professional Execution Gate</h3>
+                                </div>
+                                <div class="section-content">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="professionalGateEnabled">
+                                                <i class="fas fa-toggle-on"></i>
+                                                Enable Professional Gate
+                                            </label>
+                                            <div class="toggle-container">
+                                                <input type="checkbox" id="professionalGateEnabled" checked>
+                                                <label for="professionalGateEnabled" class="toggle-switch"></label>
+                                            </div>
+                                            <small>Let the dashboard watch weaker ideas while execution takes only cleaner setups</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="minExecutionGrade">
+                                                <i class="fas fa-ranking-star"></i>
+                                                Minimum Grade
+                                            </label>
+                                            <select id="minExecutionGrade">
+                                                <option value="A">A only</option>
+                                                <option value="B" selected>B or better</option>
+                                                <option value="C">C or better</option>
+                                            </select>
+                                            <small>Lowest setup grade allowed to execute</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="allowCGradeScalps">
+                                                <i class="fas fa-bolt"></i>
+                                                Allow C Scalps
+                                            </label>
+                                            <div class="toggle-container">
+                                                <input type="checkbox" id="allowCGradeScalps">
+                                                <label for="allowCGradeScalps" class="toggle-switch"></label>
+                                            </div>
+                                            <small>Only for strong, liquid-session scalp setups</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="minProfessionalScore">
+                                                <i class="fas fa-gauge-high"></i>
+                                                Min Setup Score
+                                            </label>
+                                            <input type="number" id="minProfessionalScore" min="0" max="1" step="0.01" placeholder="0.62" value="0.62">
+                                            <small>Composite score required by the professional gate</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="minProfessionalConviction">
+                                                <i class="fas fa-brain"></i>
+                                                Min Conviction
+                                            </label>
+                                            <input type="number" id="minProfessionalConviction" min="0" max="1" step="0.01" placeholder="0.30" value="0.30">
+                                            <small>War Room conviction required unless setup is Grade A</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="minSessionScoreForTrade">
+                                                <i class="fas fa-clock"></i>
+                                                Min Session Score
+                                            </label>
+                                            <input type="number" id="minSessionScoreForTrade" min="0" max="1" step="0.05" placeholder="0.45" value="0.45">
+                                            <small>Avoid low-liquidity periods unless setup is Grade A</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="earlyEntryEnabled">
+                                                <i class="fas fa-bolt"></i>
+                                                Enable Early Entry
+                                            </label>
+                                            <div class="toggle-container">
+                                                <input type="checkbox" id="earlyEntryEnabled" checked>
+                                                <label for="earlyEntryEnabled" class="toggle-switch"></label>
+                                            </div>
+                                            <small>Allow early-entry setups when score threshold is met</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="earlyEntryMinScore">
+                                                <i class="fas fa-chart-line"></i>
+                                                Early Entry Min Score
+                                            </label>
+                                            <input type="number" id="earlyEntryMinScore" min="0" max="1" step="0.01" placeholder="0.50" value="0.50">
+                                            <small>Score threshold for early entry candidates</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="minSessionScoreForScalp">
+                                                <i class="fas fa-tachometer-alt"></i>
+                                                Min Session Score for Scalp
+                                            </label>
+                                            <input type="number" id="minSessionScoreForScalp" min="0" max="1" step="0.05" placeholder="0.65" value="0.65">
+                                            <small>Stricter session score for scalp entries</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="executionSetupScoreThreshold">
+                                                <i class="fas fa-percent"></i>
+                                                Execution Setup Score
+                                            </label>
+                                            <input type="number" id="executionSetupScoreThreshold" min="0" max="1" step="0.01" placeholder="0.45" value="0.45">
+                                            <small>Minimum setup score for market execution</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="executionArchetypeScoreThreshold">
+                                                <i class="fas fa-layer-group"></i>
+                                                Archetype Execution Score
+                                            </label>
+                                            <input type="number" id="executionArchetypeScoreThreshold" min="0" max="1" step="0.01" placeholder="0.58" value="0.58">
+                                            <small>Threshold for archetype-based execution approval</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="marketExecutionScoreThreshold">
+                                                <i class="fas fa-fire"></i>
+                                                Market Execution Score
+                                            </label>
+                                            <input type="number" id="marketExecutionScoreThreshold" min="0" max="1" step="0.01" placeholder="0.60" value="0.60">
+                                            <small>Score threshold for market execution signals</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="marketExecutionConvictionThreshold">
+                                                <i class="fas fa-brain"></i>
+                                                Market Conviction Threshold
+                                            </label>
+                                            <input type="number" id="marketExecutionConvictionThreshold" min="0" max="1" step="0.01" placeholder="0.55" value="0.55">
+                                            <small>Conviction requirement for market execution</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="blockContextWatchTrades">
+                                                <i class="fas fa-eye-slash"></i>
+                                                Block Context Watch Trades
+                                            </label>
+                                            <div class="toggle-container">
+                                                <input type="checkbox" id="blockContextWatchTrades" checked>
+                                                <label for="blockContextWatchTrades" class="toggle-switch"></label>
+                                            </div>
+                                            <small>Prevent Context Watch setups from executing</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- MT5 Credentials Section -->
+                            <div class="settings-section settings-panel active" data-settings-panel="basic">
+                                <div class="section-header">
+                                    <i class="fas fa-plug"></i>
+                                    <h3>MT5 Connection</h3>
+                                </div>
+                                <div class="section-content">
+                                    <div class="settings-note">
+                                        Passwords are write-only here. After saving, Nexus only shows whether a password is set.
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="mt5Account">
+                                                <i class="fas fa-user"></i>
+                                                Account Number
+                                            </label>
+                                            <input type="text" id="mt5Account" placeholder="1105231" value="">
+                                            <small>Your MT5 trading account number</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="mt5Server">
+                                                <i class="fas fa-server"></i>
+                                                Server
+                                            </label>
+                                            <input type="text" id="mt5Server" placeholder="EGMecurities-Demo" value="">
+                                            <small>MT5 broker server address</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="mt5Password">
+                                                <i class="fas fa-key"></i>
+                                                Password
+                                            </label>
+                                            <input type="password" id="mt5Password" placeholder="Leave blank to keep saved password" autocomplete="new-password">
+                                            <small id="mt5PasswordState">Saved passwords are never returned in plain text.</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- War Room Section -->
+                            <div class="settings-section settings-panel" data-settings-panel="warroom">
+                                <div class="section-header">
+                                    <i class="fas fa-shield-alt"></i>
+                                    <h3>War Room Settings</h3>
+                                </div>
+                                <div class="section-content">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="warRoomEnabled">
+                                                <i class="fas fa-brain"></i>
+                                                War Room AI
+                                            </label>
+                                            <div class="toggle-container">
+                                                <input type="checkbox" id="warRoomEnabled" checked>
+                                                <label for="warRoomEnabled" class="toggle-switch"></label>
+                                            </div>
+                                            <small>Enable AI-powered trade validation</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- News Mode Section -->
+                            <div class="settings-section settings-panel" data-settings-panel="news">
+                                <div class="section-header">
+                                    <i class="fas fa-triangle-exclamation"></i>
+                                    <h3>News Mode</h3>
+                                </div>
+                                <div class="section-content">
+                                    <div class="settings-note">
+                                        Percent fields accept dashboard percentages. Example: 35 = 35%, saved internally as 0.35.
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="newsModeEnabled"><i class="fas fa-toggle-on"></i> Enable News Mode</label>
+                                            <div class="toggle-container">
+                                                <input type="checkbox" id="newsModeEnabled" checked>
+                                                <label for="newsModeEnabled" class="toggle-switch"></label>
+                                            </div>
+                                            <small>Apply extra rules during event-driven movement.</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="newsBlockUnsafe"><i class="fas fa-ban"></i> Block Unsafe News Trades</label>
+                                            <div class="toggle-container">
+                                                <input type="checkbox" id="newsBlockUnsafe" checked>
+                                                <label for="newsBlockUnsafe" class="toggle-switch"></label>
+                                            </div>
+                                            <small>Hold setups when spread or event state is unsafe.</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="newsRiskMultiplier"><i class="fas fa-scale-balanced"></i> News Risk Multiplier (%) <span class="danger-label">risky</span></label>
+                                            <input type="number" id="newsRiskMultiplier" min="1" max="100" step="1" value="35" required data-numeric-label="News Risk Multiplier">
+                                            <small>Reduced risk used for permitted post-news entries.</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="newsAllowRetestFollow"><i class="fas fa-route"></i> Allow Retest Follow</label>
+                                            <div class="toggle-container">
+                                                <input type="checkbox" id="newsAllowRetestFollow" checked>
+                                                <label for="newsAllowRetestFollow" class="toggle-switch"></label>
+                                            </div>
+                                            <small>Permit follow-through entries after a safe retest.</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="newsLadderEnabled"><i class="fas fa-layer-group"></i> Enable News Ladder <span class="danger-label">danger</span></label>
+                                            <div class="toggle-container">
+                                                <input type="checkbox" id="newsLadderEnabled" checked>
+                                                <label for="newsLadderEnabled" class="toggle-switch"></label>
+                                            </div>
+                                            <small>Add controlled follow-up positions only after profit confirmation.</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="newsLadderMaxAddons"><i class="fas fa-plus"></i> Max News Add-ons</label>
+                                            <input type="number" id="newsLadderMaxAddons" min="0" max="10" step="1" value="2" required data-numeric-label="Max News Add-ons">
+                                            <small>Maximum add-on positions per news trade.</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="newsLadderMinR"><i class="fas fa-arrow-trend-up"></i> Add-on Min Profit (R)</label>
+                                            <input type="number" id="newsLadderMinR" min="0" max="5" step="0.05" value="0.55" required data-numeric-label="Add-on Min Profit">
+                                            <small>Profit threshold before add-ons are allowed.</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="newsLadderVolumePct"><i class="fas fa-percent"></i> Add-on Volume (%) <span class="danger-label">risky</span></label>
+                                            <input type="number" id="newsLadderVolumePct" min="1" max="100" step="1" value="35" required data-numeric-label="Add-on Volume">
+                                            <small>Percent of base/current volume used for add-ons.</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="newsLadderCooldownSeconds"><i class="fas fa-hourglass"></i> Add-on Cooldown (seconds)</label>
+                                            <input type="number" id="newsLadderCooldownSeconds" min="30" max="3600" step="30" value="180" required data-numeric-label="Add-on Cooldown">
+                                            <small>Minimum spacing between add-on attempts.</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Alerts Section -->
+                            <div class="settings-section settings-panel" data-settings-panel="alerts">
+                                <div class="section-header">
+                                    <i class="fas fa-bell"></i>
+                                    <h3>Alerts</h3>
+                                </div>
+                                <div class="section-content">
+                                    <div class="settings-note">
+                                        Alert secrets are write-only. Leave token/webhook fields blank to keep current saved values.
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="telegramBotToken"><i class="fab fa-telegram"></i> Telegram Bot Token</label>
+                                            <input type="password" id="telegramBotToken" placeholder="Leave blank to keep saved token" autocomplete="new-password">
+                                            <small id="telegramTokenState">Saved tokens are not exposed in plain text.</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="telegramChatId"><i class="fas fa-message"></i> Telegram Chat ID</label>
+                                            <input type="text" id="telegramChatId" placeholder="123456789">
+                                            <small>Destination chat for Telegram notifications.</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="discordWebhook"><i class="fab fa-discord"></i> Discord Webhook</label>
+                                            <input type="password" id="discordWebhook" placeholder="Leave blank to keep saved webhook" autocomplete="new-password">
+                                            <small id="discordWebhookState">Saved webhooks are not exposed in plain text.</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-section settings-panel" data-settings-panel="advanced">
+                                <div class="section-header">
+                                    <i class="fas fa-screwdriver-wrench"></i>
+                                    <h3>Advanced Legacy Rules</h3>
+                                </div>
+                                <div class="section-content">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="ruleEma"><i class="fas fa-wave-square"></i> EMA Rule</label>
+                                            <div class="toggle-container">
+                                                <input type="checkbox" id="ruleEma">
+                                                <label for="ruleEma" class="toggle-switch"></label>
+                                            </div>
+                                            <small>Legacy EMA validation toggle</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="ruleVolume"><i class="fas fa-chart-column"></i> Volume Rule</label>
+                                            <div class="toggle-container">
+                                                <input type="checkbox" id="ruleVolume">
+                                                <label for="ruleVolume" class="toggle-switch"></label>
+                                            </div>
+                                            <small>Legacy volume validation toggle</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="rulePo3"><i class="fas fa-layer-group"></i> PO3 Rule</label>
+                                            <div class="toggle-container">
+                                                <input type="checkbox" id="rulePo3">
+                                                <label for="rulePo3" class="toggle-switch"></label>
+                                            </div>
+                                            <small>Legacy power-of-three validation toggle</small>
+                                        </div>
+                                    </div>
+                                    <div class="settings-note">
+                                        These are older validation switches kept for compatibility. The professional execution gate is the preferred control surface.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="settings-actions">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i>
+                                    Save Configuration
+                                </button>
+                                <button type="button" id="resetBtn" class="btn btn-secondary">
+                                    <i class="fas fa-redo"></i>
+                                    Reset to Defaults
+                                </button>
+                                <button type="button" id="exportBtn" class="btn btn-outline">
+                                    <i class="fas fa-download"></i>
+                                    Export Config
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <section id="users" class="page">
+                    <section class="panel glass-card p-6 rounded-2xl user-management-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-users-gear"></i> User Roles</h3>
+                            <span id="userManagementBadge" class="status-badge neutral">Admin Only</span>
+                        </div>
+                        <div class="license-admin-grid">
+                            <form id="userCreateForm" class="license-form">
+                                <div class="edge-column-heading">
+                                    <strong>Create User</strong>
+                                    <span>Admin, trader, and viewer access</span>
+                                </div>
+                                <input type="email" id="newUserEmail" placeholder="user@example.com">
+                                <input type="password" id="newUserPassword" placeholder="Temporary password">
+                                <select id="newUserRole">
+                                    <option value="viewer">Viewer</option>
+                                    <option value="trader">Trader</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                                <button type="submit" class="btn btn-primary"><i class="fas fa-user-plus"></i> Create User</button>
+                            </form>
+                            <div class="edge-column-heading broker-note">
+                                <strong>Role Permissions</strong>
+                                <span>Viewer can monitor only. Trader can operate execution. Admin can manage users, brokers, licenses, and settings.</span>
+                            </div>
+                        </div>
+                        <div class="table-scroll-shell license-table-shell">
+                            <table class="table license-table">
+                                <thead>
+                                    <tr>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Status</th>
+                                        <th>Tenant</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTableBody">
+                                    <tr><td colspan="5">Loading users...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                </section>
+            </div>
+            {% include "_licensed_footer.html" %}
+        </main>
+    </div>
+
+    <div id="providerProfileModal" class="modal central-modal" aria-hidden="true">
+        <div class="modal-content provider-modal-card">
+            <button class="modal-close" data-close-provider-modal aria-label="Close">&times;</button>
+            <span class="eyebrow">Service Provider</span>
+            <h2>{{ branding.owner_name }}</h2>
+            <strong>{{ branding.brand }}</strong>
+            <p>{{ branding.role }}</p>
+            <p>{{ branding.profile }}</p>
+            <div class="owner-contact-row">
+                <a href="mailto:{{ branding.email }}">{{ branding.email }}</a>
+                <span>{{ branding.phone }}</span>
+                <span>WhatsApp: {{ branding.whatsapp }}</span>
+            </div>
+            <p class="risk-disclaimer">{{ branding.risk_disclaimer }}</p>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}?v={{ app_js_version }}"></script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Trading Bot License Terms</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="public-page">
+    <main class="public-shell">
+        <section class="public-panel">
+            <span class="brand-mark"><i class="fas fa-scale-balanced"></i></span>
+            <h1>Nexus Trading Bot License Terms</h1>
+            <p class="public-subtitle">{{ branding.risk_disclaimer }}</p>
+            <ul class="terms-list">
+                <li>The software is licensed, not sold.</li>
+                <li>One license is valid for one client or one installation unless otherwise agreed.</li>
+                <li>License duration may be monthly, annual, trial, or lifetime.</li>
+                <li>Unauthorized resale, copying, redistribution, or removal of branding is prohibited.</li>
+                <li>The developer retains ownership of the source code and core system.</li>
+                <li>Clients may use the system for personal or business trading automation according to their license.</li>
+                <li>The system does not guarantee profits.</li>
+                <li>Forex, CFDs, crypto, and leveraged products involve high risk.</li>
+                <li>The client is responsible for broker accounts, deposits, withdrawals, trading decisions, and risk exposure.</li>
+                <li>The developer is not liable for trading losses, broker issues, internet failure, VPS failure, slippage, market gaps, or exchange downtime.</li>
+                <li>License may be suspended if tampering, unauthorized redistribution, or non-payment is detected.</li>
+            </ul>
+            <a class="public-cta" href="{{ url_for('login') }}">Return to portal</a>
+        </section>
+    </main>
+    {% include "_licensed_footer.html" %}
+</body>
+</html>

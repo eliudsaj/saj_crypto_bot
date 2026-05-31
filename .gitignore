@@ -1,0 +1,27 @@
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+.env
+.env.*
+
+# IDE files
+.vscode/
+
+# Logs
+logs/
+*.log
+server.out
+server.err
+demo_server.out.log
+demo_server.err.log
+out*.txt
+
+# Runtime data and generated artifacts
+data/
+models/
+*.db
+*.sqlite
+*.sqlite3

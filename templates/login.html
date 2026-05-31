@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="login-page">
+    <main class="login-shell">
+        <section class="login-panel">
+            <div class="login-brand">
+                <span class="brand-mark"><i class="fas fa-chart-line"></i></span>
+                <div>
+                    <h1>Nexus Trading Bot</h1>
+                    <p>Secure client trading portal</p>
+                </div>
+            </div>
+            <div class="login-provider-card">
+                <strong>{{ branding.brand }}</strong>
+                <span>{{ branding.role }}</span>
+                <p>{{ branding.risk_disclaimer }}</p>
+            </div>
+            <form id="loginForm" class="login-form">
+                <label>
+                    <span>Email</span>
+                    <input type="email" name="email" autocomplete="username" required autofocus>
+                </label>
+                <label>
+                    <span>Password</span>
+                    <input type="password" name="password" autocomplete="current-password" required>
+                </label>
+                <button type="submit">
+                    <i class="fas fa-right-to-bracket"></i>
+                    Sign in
+                </button>
+                <div id="loginError" class="login-error" role="alert"></div>
+            </form>
+            <div class="login-links">
+                <a href="{{ url_for('about') }}">About Nexus</a>
+                <a href="{{ url_for('license_terms') }}">License terms</a>
+            </div>
+        </section>
+    </main>
+    {% include "_licensed_footer.html" %}
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const form = document.getElementById('loginForm');
+        const errorBox = document.getElementById('loginError');
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            errorBox.textContent = '';
+            const body = Object.fromEntries(new FormData(form).entries());
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body),
+                });
+                const payload = await response.json();
+                if (!response.ok || payload.status !== 'success') {
+                    errorBox.textContent = payload.message || 'Sign in failed';
+                    return;
+                }
+                window.location.href = params.get('next') || '/';
+            } catch (error) {
+                errorBox.textContent = 'Unable to reach authentication service';
+            }
+        });
+    </script>
+</body>
+</html>

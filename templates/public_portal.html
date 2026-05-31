@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Trading Systems</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="public-page">
+    <main class="public-shell">
+        <section class="public-hero public-panel">
+            <span class="brand-mark"><i class="fas fa-chart-line"></i></span>
+            <h1>Professional MT5 Trading Bot Automation for Forex, Gold, and Crypto</h1>
+            <p class="public-subtitle">
+                Built with risk controls, broker connectivity, strategy validation, licensing, Telegram alerts, and a real-time trading dashboard.
+            </p>
+            <div class="public-feature-grid">
+                <span>MT5 Broker Integration</span>
+                <span>Forex and Gold Automation</span>
+                <span>Crypto-Ready Architecture</span>
+                <span>Risk Controls and Kill Switch</span>
+                <span>Strategy Validation</span>
+                <span>Telegram Alerts</span>
+                <span>License Activation</span>
+                <span>Admin Dashboard</span>
+                <span>Trade Journal and Analytics</span>
+                <span>Broker Management</span>
+            </div>
+            <article class="owner-profile-card">
+                <h2>{{ branding.owner_name }}</h2>
+                <strong>{{ branding.brand }}</strong>
+                <span>{{ branding.role }}</span>
+                <p>{{ branding.profile }}</p>
+                <div class="owner-contact-row">
+                    <a href="mailto:{{ branding.email }}">{{ branding.email }}</a>
+                    <span>{{ branding.phone }}</span>
+                    <span>WhatsApp: {{ branding.whatsapp }}</span>
+                </div>
+            </article>
+            <p class="risk-disclaimer">{{ branding.risk_disclaimer }}</p>
+            <a class="public-cta" href="mailto:{{ branding.email }}">Contact Eliud for setup, customization, or deployment</a>
+        </section>
+    </main>
+    {% include "_licensed_footer.html" %}
+</body>
+</html>
